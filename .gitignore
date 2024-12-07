@@ -1,0 +1,14 @@
+venv/
+__pycache__/
+*.pyc
+.env
+.vscode/
+*.log
+
+# Docker and Kubernetes
+*.tar
+*.docker
+
+# IDE files
+.idea/
+*.swp
