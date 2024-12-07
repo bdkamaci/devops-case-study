@@ -1,5 +1,5 @@
-# Use an official Python runtime as a parent image
-FROM python:3.9-slim
+# Use Python 3.13-slim as the base image
+FROM python:3.13-slim
 
 # Set the working directory in the container
 WORKDIR /app
