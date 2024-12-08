@@ -21,6 +21,14 @@ jobs:
       - name: Run tests
         run: |
           PYTHONPATH=. pytest app/tests/
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v2
+        with:
+          username: ${{ github.actor }}  
+          password: ${{ secrets.GHCR_TOKEN }}  # Token stored in GitHub Secrets    
       - name: Build Docker image
         run: |
           docker build -t myapp:${{ github.sha }} .
+      - name: Push Docker image to GHCR
+        run: |
+          docker push ghcr.io/${{ github.repository_owner }}/myapp:${{ github.sha }}     
