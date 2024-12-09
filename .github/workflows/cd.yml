@@ -41,13 +41,25 @@ jobs:
       # Set up Kubernetes context
       - name: Set up Kubernetes context
         run: |
-          echo "${{ secrets.KUBE_CONFIG }}" | base64 --decode > kubeconfig
-          export KUBECONFIG=$(pwd)/kubeconfig
           if [[ "${GITHUB_REF}" == "refs/heads/main" ]]; then
-            kubectl config use-context prod-cluster-context
+            echo "${{ secrets.KUBECONFIG_PROD }}" | base64 --decode > kubeconfig
           elif [[ "${GITHUB_REF}" == "refs/heads/develop" ]]; then
-            kubectl config use-context dev-cluster-context
-          fi    
+            echo "${{ secrets.KUBECONFIG_DEV }}" | base64 --decode > kubeconfig
+          fi
+          export KUBECONFIG=$(pwd)/kubeconfig
+
+      # Create namespaces
+      - name: Create namespaces
+        run: |
+          if [[ "${GITHUB_REF}" == "refs/heads/main" ]]; then
+            kubectl create namespace production || true
+          elif [[ "${GITHUB_REF}" == "refs/heads/develop" ]]; then
+            kubectl create namespace development || true
+          fi
+
+      # Validate Kubernetes connection
+      - name: Validate Kubernetes connection
+        run: kubectl get nodes
 
       # Deploy to Kubernetes (Development) using Helm
       - name: Deploy to Kubernetes (Development)
