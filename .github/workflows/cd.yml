@@ -11,20 +11,21 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      # Install kubectl (if not already installed in the environment)
+      # Install kubectl
       - name: Set up kubectl
         run: |
-          curl -LO "https://dl.k8s.io/release/v1.21.0/bin/linux/amd64/kubectl"
+          curl -LO "https://dl.k8s.io/release/v1.21.0/bin/linux/amd64/kubectl" || { echo "Failed to download kubectl"; exit 1; }
           chmod +x ./kubectl
           sudo mv ./kubectl /usr/local/bin/kubectl
 
-      # Install Helm (if not already installed in the environment)
+      # Install Helm
       - name: Set up Helm
         run: |
-          curl https://get.helm.sh/helm-v3.6.3-linux-amd64.tar.gz -o helm-v3.6.3-linux-amd64.tar.gz
+          curl -LO https://get.helm.sh/helm-v3.6.3-linux-amd64.tar.gz || { echo "Failed to download Helm"; exit 1; }
           tar -zxvf helm-v3.6.3-linux-amd64.tar.gz
           sudo mv linux-amd64/helm /usr/local/bin/helm
 
+      # Authenticate Docker to GitHub Container Registry
       - name: Authenticate Docker to GitHub Container Registry
         uses: docker/login-action@v2
         with:
@@ -32,10 +33,11 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GHCR_TOKEN }}
 
+      # Pull Docker image
       - name: Pull Docker image
         run: |
-          docker pull ghcr.io/${{ github.repository_owner }}/myapp:${{ github.sha }}
-        
+          docker pull ghcr.io/${{ github.repository_owner }}/myapp:${{ github.sha }} || { echo "Failed to pull Docker image"; exit 1; }
+
       # Deploy to Kubernetes (Development) using Helm
       - name: Deploy to Kubernetes (Development)
         if: github.ref == 'refs/heads/develop'
@@ -43,7 +45,7 @@ jobs:
           helm upgrade --install myapp-dev ./helm/myapp --namespace development \
           --set image.tag=${{ github.sha }} \
           --set environment.APP_ENVIRONMENT=development \
-          --set db.host=dev-db.example.com
+          --set db.host=dev-db.example.com || { echo "Failed to deploy to development"; exit 1; }
 
       # Deploy to Kubernetes (Production) using Helm
       - name: Deploy to Kubernetes (Production)
@@ -52,9 +54,10 @@ jobs:
           helm upgrade --install myapp-prod ./helm/myapp --namespace production \
           --set image.tag=${{ github.sha }} \
           --set environment.APP_ENVIRONMENT=production \
-          --set db.host=prod-db.example.com
+          --set db.host=prod-db.example.com || { echo "Failed to deploy to production"; exit 1; }
 
       # Optionally, add ArgoCD deployment step (if ArgoCD is used for syncing)
       - name: Sync ArgoCD application
+        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'
         run: |
-          argocd app sync myapp --auth-token ${{ secrets.ARGOCD_AUTH_TOKEN }} --server argocd.example.com
+          argocd app sync myapp --auth-token ${{ secrets.ARGOCD_AUTH_TOKEN }} --server argocd.example.com || { echo "Failed to sync ArgoCD application"; exit 1; }
