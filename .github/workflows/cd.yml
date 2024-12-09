@@ -38,6 +38,17 @@ jobs:
         run: |
           docker pull ghcr.io/${{ github.repository_owner }}/myapp:${{ github.sha }} || { echo "Failed to pull Docker image"; exit 1; }
 
+      # Set up Kubernetes context
+      - name: Set up Kubernetes context
+        run: |
+          echo "${{ secrets.KUBE_CONFIG }}" | base64 --decode > kubeconfig
+          export KUBECONFIG=$(pwd)/kubeconfig
+          if [[ "${GITHUB_REF}" == "refs/heads/main" ]]; then
+            kubectl config use-context prod-cluster-context
+          elif [[ "${GITHUB_REF}" == "refs/heads/develop" ]]; then
+            kubectl config use-context dev-cluster-context
+          fi    
+
       # Deploy to Kubernetes (Development) using Helm
       - name: Deploy to Kubernetes (Development)
         if: github.ref == 'refs/heads/develop'
