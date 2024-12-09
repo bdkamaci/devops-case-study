@@ -1,0 +1,59 @@
+name: Python CD
+on:
+  push:
+    branches: [ main, develop ]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      # Install kubectl (if not already installed in the environment)
+      - name: Set up kubectl
+        run: |
+          curl -LO "https://dl.k8s.io/release/v1.21.0/bin/linux/amd64/kubectl"
+          chmod +x ./kubectl
+          sudo mv ./kubectl /usr/local/bin/kubectl
+
+      # Install Helm (if not already installed in the environment)
+      - name: Set up Helm
+        run: |
+          curl https://get.helm.sh/helm-v3.6.3-linux-amd64.tar.gz -o helm-v3.6.3-linux-amd64.tar.gz
+          tar -zxvf helm-v3.6.3-linux-amd64.tar.gz
+          sudo mv linux-amd64/helm /usr/local/bin/helm
+
+      - name: Authenticate Docker to GitHub Container Registry
+        uses: docker/login-action@v2
+        with:
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Pull Docker image
+        run: |
+          docker pull ghcr.io/${{ github.repository_owner }}/myapp:${{ github.sha }}
+
+      # Deploy to Kubernetes (Development) using Helm
+      - name: Deploy to Kubernetes (Development)
+        if: github.ref == 'refs/heads/develop'
+        run: |
+          helm upgrade --install myapp-dev ./helm/myapp --namespace development \
+          --set image.tag=${{ github.sha }} \
+          --set environment.APP_ENVIRONMENT=development \
+          --set db.host=dev-db.example.com
+
+      # Deploy to Kubernetes (Production) using Helm
+      - name: Deploy to Kubernetes (Production)
+        if: github.ref == 'refs/heads/main'
+        run: |
+          helm upgrade --install myapp-prod ./helm/myapp --namespace production \
+          --set image.tag=${{ github.sha }} \
+          --set environment.APP_ENVIRONMENT=production \
+          --set db.host=prod-db.example.com
+
+      # Optionally, add ArgoCD deployment step (if ArgoCD is used for syncing)
+      - name: Sync ArgoCD application
+        run: |
+          argocd app sync myapp --auth-token ${{ secrets.ARGOCD_AUTH_TOKEN }} --server argocd.example.com
