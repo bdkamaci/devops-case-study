@@ -1,0 +1,10 @@
+apiVersion: v2
+name: myapp-database
+description: Helm chart for the database component of the DevOps case study application
+version: 0.1.0
+appVersion: "12.1.0"
+
+dependencies:
+- name: postgresql
+  version: "12.1.0"
+  repository: "https://charts.bitnami.com/bitnami"
