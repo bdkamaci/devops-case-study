@@ -1,0 +1,15 @@
+image:
+  repository: ghcr.io/bdkamaci/myapp
+  tag: v1.0.0
+  pullPolicy: Always
+
+replicaCount: 3
+
+env:
+  APP_ENVIRONMENT: production
+  DB_HOST: myapp-database-prod.default.svc.cluster.local
+
+database:
+  enabled: true
+  host: myapp-database-prod.default.svc.cluster.local
+  secretName: app-db-secrets
