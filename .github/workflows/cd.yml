@@ -52,6 +52,30 @@ jobs:
           chmod +x /tmp/argocd
           sudo mv /tmp/argocd /usr/local/bin/argocd
 
+      # Create ArgoCD namespace and install ArgoCD
+      - name: Create ArgoCD namespace and install ArgoCD
+        run: |
+          kubectl get namespace argocd || kubectl create namespace argocd
+          kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml || true
+
+      # Wait for ArgoCD pods to be running
+      - name: Wait for ArgoCD pods to be running
+        run: |
+          kubectl rollout status deployment/argocd-server -n argocd --timeout=300s
+
+      # Check ArgoCD pod and service status
+      - name: Check ArgoCD status
+        run: |
+          kubectl get pods -n argocd
+          kubectl get svc -n argocd
+
+      # Port forward ArgoCD (Optional for DNS issues)
+      - name: Forward ArgoCD port
+        run: |
+          nohup kubectl port-forward svc/argocd-server -n argocd 8080:443 &
+          sleep 5
+          curl -k https://localhost:8080    
+
       # Authenticate Docker to GitHub Container Registry
       - name: Authenticate Docker to GitHub Container Registry
         uses: docker/login-action@v2
@@ -100,19 +124,6 @@ jobs:
           --set environment.APP_ENVIRONMENT=production \
           --set db.host=prod-db.example.com \
           -f ./helm/app-chart/values-prod.yaml || { echo "Failed to deploy to production"; exit 1; }
-
-      # Check ArgoCD pod and service status    
-      - name: Check ArgoCD status
-        run: |
-          kubectl get pods -n argocd
-          kubectl get svc -n argocd
-
-      # Port forward ArgoCD (Optional for DNS issues)    
-      - name: Forward ArgoCD port
-        run: |
-          nohup kubectl port-forward svc/argocd-server -n argocd 8080:443 &
-          sleep 5
-          curl -k https://localhost:8080
 
       # Interact with ArgoCD CLI
       - name: Login to ArgoCD
