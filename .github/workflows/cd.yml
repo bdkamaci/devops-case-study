@@ -105,13 +105,11 @@ jobs:
       - name: Sync ArgoCD application
         if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'
         run: |
-          # Login and sync in one command
-          argocd login argocd.example.com \
+          argocd login argocd-server.argocd.svc.cluster.local \
             --username admin \
             --password ${{ secrets.ARGOCD_AUTH_TOKEN }} \
             --insecure
-
+      
           argocd app sync myapp \
-            --server argocd.example.com \
-            --insecure \
-            || { echo "Failed to sync ArgoCD application"; exit 1; }
+            --server argocd-server.argocd.svc.cluster.local \
+            --insecure
