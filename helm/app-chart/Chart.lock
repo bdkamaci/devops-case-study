@@ -1,0 +1,6 @@
+dependencies:
+- name: myapp-database
+  repository: file://../database-chart
+  version: 0.1.0
+digest: sha256:e79ea16dd0bab5430a780977286ba4f4f0041c9e64fd8592ecad92e550a4cb25
+generated: "2024-12-10T11:33:23.159976+01:00"
