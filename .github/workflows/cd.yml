@@ -45,6 +45,13 @@ jobs:
           tar -zxvf helm-v3.6.3-linux-amd64.tar.gz
           sudo mv linux-amd64/helm /usr/local/bin/helm
 
+      # Install ArgoCD CLI
+      - name: Install ArgoCD CLI
+        run: |
+          curl -sSL https://github.com/argoproj/argo-cd/releases/latest/download/argocd-linux-amd64 -o argocd
+          chmod +x argocd
+          sudo mv argocd /usr/local/bin/    
+
       # Authenticate Docker to GitHub Container Registry
       - name: Authenticate Docker to GitHub Container Registry
         uses: docker/login-action@v2
@@ -86,7 +93,7 @@ jobs:
         run: |
           # Update Helm dependencies
           helm dependency update ./helm/app-chart
-          
+
           # Deploy the application
           helm upgrade --install myapp-prod ./helm/app-chart --namespace production \
           --set image.tag=${{ github.sha }} \
