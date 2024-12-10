@@ -101,8 +101,17 @@ jobs:
           --set db.host=prod-db.example.com \
           -f ./helm/app-chart/values-prod.yaml || { echo "Failed to deploy to production"; exit 1; }
         
-      # Optionally, add ArgoCD deployment step (if ArgoCD is used for syncing)
+      # Sync ArgoCD Application
       - name: Sync ArgoCD application
         if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'
         run: |
-          argocd app sync myapp --auth-token ${{ secrets.ARGOCD_AUTH_TOKEN }} --server argocd.example.com || { echo "Failed to sync ArgoCD application"; exit 1; }
+          # Login and sync in one command
+          argocd login argocd.example.com \
+            --username admin \
+            --password ${{ secrets.ARGOCD_AUTH_TOKEN }} \
+            --insecure
+
+          argocd app sync myapp \
+            --server argocd.example.com \
+            --insecure \
+            || { echo "Failed to sync ArgoCD application"; exit 1; }
