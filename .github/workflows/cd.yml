@@ -84,6 +84,10 @@ jobs:
       - name: Deploy to Kubernetes (Production)
         if: github.ref == 'refs/heads/main'
         run: |
+          # Update Helm dependencies
+          helm dependency update ./helm/app-chart
+          
+          # Deploy the application
           helm upgrade --install myapp-prod ./helm/app-chart --namespace production \
           --set image.tag=${{ github.sha }} \
           --set environment.APP_ENVIRONMENT=production \
