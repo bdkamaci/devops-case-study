@@ -75,20 +75,21 @@ jobs:
       - name: Deploy to Kubernetes (Development)
         if: github.ref == 'refs/heads/develop'
         run: |
-          helm upgrade --install myapp-dev ./helm/myapp --namespace development \
+          helm upgrade --install myapp-dev ./helm/app-chart --namespace development \
           --set image.tag=${{ github.sha }} \
           --set environment.APP_ENVIRONMENT=development \
-          --set db.host=dev-db.example.com || { echo "Failed to deploy to development"; exit 1; }
+          --set db.host=dev-db.example.com
 
       # Deploy to Kubernetes (Production) using Helm
       - name: Deploy to Kubernetes (Production)
         if: github.ref == 'refs/heads/main'
         run: |
-          helm upgrade --install myapp-prod ./helm/myapp --namespace production \
+          helm upgrade --install myapp-prod ./helm/app-chart --namespace production \
           --set image.tag=${{ github.sha }} \
           --set environment.APP_ENVIRONMENT=production \
-          --set db.host=prod-db.example.com || { echo "Failed to deploy to production"; exit 1; }
-
+          --set db.host=prod-db.example.com \
+          -f ./helm/app-chart/values-prod.yml || { echo "Failed to deploy to production"; exit 1; }
+        
       # Optionally, add ArgoCD deployment step (if ArgoCD is used for syncing)
       - name: Sync ArgoCD application
         if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'
