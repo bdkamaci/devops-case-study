@@ -6,17 +6,37 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-
+    
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
-
+      
       # Install kubectl
       - name: Set up kubectl
         run: |
           curl -LO "https://dl.k8s.io/release/v1.21.0/bin/linux/amd64/kubectl" || { echo "Failed to download kubectl"; exit 1; }
           chmod +x ./kubectl
           sudo mv ./kubectl /usr/local/bin/kubectl
+      
+      # Install Kind
+      - name: Set up Kind Kubernetes cluster
+        run: |
+          # Install Kind
+          curl -Lo ./kind https://kind.sigs.k8s.io/dl/v0.20.0/kind-linux-amd64
+          chmod +x ./kind
+          sudo mv ./kind /usr/local/bin/kind
+          
+          # Create Kind cluster
+          kind create cluster --name github-actions-cluster
+          
+          # Get kubeconfig for the created cluster
+          kind get kubeconfig --name github-actions-cluster > kubeconfig
+          
+          # Set KUBECONFIG environment variable
+          export KUBECONFIG=$(pwd)/kubeconfig
+          
+          # Verify cluster is up
+          kubectl get nodes
 
       # Install Helm
       - name: Set up Helm
@@ -37,16 +57,6 @@ jobs:
       - name: Pull Docker image
         run: |
           docker pull ghcr.io/${{ github.repository_owner }}/myapp:${{ github.sha }} || { echo "Failed to pull Docker image"; exit 1; }
-
-      # Set up Kubernetes context
-      - name: Set up Kubernetes context
-        run: |
-          if [[ "${GITHUB_REF}" == "refs/heads/main" ]]; then
-            echo "${{ secrets.KUBECONFIG_PROD }}" | base64 --decode > kubeconfig
-          elif [[ "${GITHUB_REF}" == "refs/heads/develop" ]]; then
-            echo "${{ secrets.KUBECONFIG_DEV }}" | base64 --decode > kubeconfig
-          fi
-          export KUBECONFIG=$(pwd)/kubeconfig
 
       # Create namespaces
       - name: Create namespaces
