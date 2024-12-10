@@ -69,76 +69,22 @@ jobs:
           kubectl get pods -n argocd
           kubectl get svc -n argocd
 
-      # Port forward ArgoCD (Optional for DNS issues)
-      - name: Forward ArgoCD port
+      # Get external IP of ArgoCD server
+      - name: Get External IP for ArgoCD
         run: |
-          nohup kubectl port-forward svc/argocd-server -n argocd 8080:443 &
-          sleep 5
-          curl -k https://localhost:8080    
+          export ARGOCD_EXTERNAL_IP=$(kubectl get svc argocd-server -n argocd -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+          echo "ARGOCD_EXTERNAL_IP=$ARGOCD_EXTERNAL_IP" >> $GITHUB_ENV
 
-      # Authenticate Docker to GitHub Container Registry
-      - name: Authenticate Docker to GitHub Container Registry
-        uses: docker/login-action@v2
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GHCR_TOKEN }}
-
-      # Pull Docker image
-      - name: Pull Docker image
-        run: |
-          docker pull ghcr.io/${{ github.repository_owner }}/myapp:${{ github.sha }} || { echo "Failed to pull Docker image"; exit 1; }
-
-      # Create namespaces
-      - name: Create namespaces
-        run: |
-          if [[ "${GITHUB_REF}" == "refs/heads/main" ]]; then
-            kubectl create namespace production || true
-          elif [[ "${GITHUB_REF}" == "refs/heads/develop" ]]; then
-            kubectl create namespace development || true
-          fi
-
-      # Validate Kubernetes connection
-      - name: Validate Kubernetes connection
-        run: kubectl get nodes
-
-      # Deploy to Kubernetes (Development) using Helm
-      - name: Deploy to Kubernetes (Development)
-        if: github.ref == 'refs/heads/develop'
-        run: |
-          helm upgrade --install myapp-dev ./helm/app-chart --namespace development \
-          --set image.tag=${{ github.sha }} \
-          --set environment.APP_ENVIRONMENT=development \
-          --set db.host=dev-db.example.com
-
-      # Deploy to Kubernetes (Production) using Helm
-      - name: Deploy to Kubernetes (Production)
-        if: github.ref == 'refs/heads/main'
-        run: |
-          # Update Helm dependencies
-          helm dependency update ./helm/app-chart
-
-          # Deploy the application
-          helm upgrade --install myapp-prod ./helm/app-chart --namespace production \
-          --set image.tag=${{ github.sha }} \
-          --set environment.APP_ENVIRONMENT=production \
-          --set db.host=prod-db.example.com \
-          -f ./helm/app-chart/values-prod.yaml || { echo "Failed to deploy to production"; exit 1; }
-
-      # Interact with ArgoCD CLI
+      # Authenticate to ArgoCD
       - name: Login to ArgoCD
         run: |
-          argocd login localhost:8080 \
+          argocd login ${{ env.ARGOCD_EXTERNAL_IP }} \
             --username admin \
             --password ${{ secrets.ARGOCD_AUTH_TOKEN }} \
             --insecure    
-      
+
+      # Sync application with ArgoCD
       - name: Sync application with ArgoCD
         run: |
           argocd app sync myapp
-          argocd app wait myapp --health --timeout 300      
-          
-      # Verify DNS (Optional)
-      - name: Verify DNS resolution
-        run: |
-          kubectl run dnsutils --image=tutum/dnsutils --rm -it --restart=Never -- nslookup argocd-server.argocd.svc.cluster.local
+          argocd app wait myapp --health --timeout 300
