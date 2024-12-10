@@ -100,16 +100,34 @@ jobs:
           --set environment.APP_ENVIRONMENT=production \
           --set db.host=prod-db.example.com \
           -f ./helm/app-chart/values-prod.yaml || { echo "Failed to deploy to production"; exit 1; }
-        
-      # Sync ArgoCD Application
-      - name: Sync ArgoCD application
-        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'
+
+      # Check ArgoCD pod and service status    
+      - name: Check ArgoCD status
         run: |
-          argocd login argocd-server.argocd.svc.cluster.local \
+          kubectl get pods -n argocd
+          kubectl get svc -n argocd
+
+      # Port forward ArgoCD (Optional for DNS issues)    
+      - name: Forward ArgoCD port
+        run: |
+          nohup kubectl port-forward svc/argocd-server -n argocd 8080:443 &
+          sleep 5
+          curl -k https://localhost:8080
+
+      # Interact with ArgoCD CLI
+      - name: Login to ArgoCD
+        run: |
+          argocd login localhost:8080 \
             --username admin \
             --password ${{ secrets.ARGOCD_AUTH_TOKEN }} \
-            --insecure
+            --insecure    
       
-          argocd app sync myapp \
-            --server argocd-server.argocd.svc.cluster.local \
-            --insecure
+      - name: Sync application with ArgoCD
+        run: |
+          argocd app sync myapp
+          argocd app wait myapp --health --timeout 300      
+          
+      # Verify DNS (Optional)
+      - name: Verify DNS resolution
+        run: |
+          kubectl run dnsutils --image=tutum/dnsutils --rm -it --restart=Never -- nslookup argocd-server.argocd.svc.cluster.local
