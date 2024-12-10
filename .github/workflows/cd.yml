@@ -88,7 +88,7 @@ jobs:
           --set image.tag=${{ github.sha }} \
           --set environment.APP_ENVIRONMENT=production \
           --set db.host=prod-db.example.com \
-          -f ./helm/app-chart/values-prod.yml || { echo "Failed to deploy to production"; exit 1; }
+          -f ./helm/app-chart/values-prod.yaml || { echo "Failed to deploy to production"; exit 1; }
         
       # Optionally, add ArgoCD deployment step (if ArgoCD is used for syncing)
       - name: Sync ArgoCD application
